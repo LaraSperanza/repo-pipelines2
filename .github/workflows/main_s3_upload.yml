@@ -1,6 +1,6 @@
 name: CI/CD - OIDC S3 Upload
 
-# Ejecución automática al hacer push al branch 'main' y ejecución manual
+# Ejecución automática al hacer push al branch 'main' y ejecución manual.
 on:
   push:
     branches:
