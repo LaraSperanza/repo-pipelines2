@@ -1,0 +1,74 @@
+name: CI/CD - OIDC S3 Upload
+
+# Ejecución automática al hacer push al branch 'main' y ejecución manual
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+# Permisos requeridos para el OIDC (¡Esencial!)
+permissions:
+  id-token: write # Permite que el job obtenga el token OIDC
+  contents: read  # Permite checkout del código
+
+jobs:
+  deploy_to_s3:
+    # 1. ACTUALIZACIÓN: Uso del Environment especificado
+    environment: environment-pipelines
+    runs-on: ubuntu-latest
+
+    # Definición de las variables y secrets del Environment
+    env:
+      # 2. ACTUALIZACIÓN: Consumo de variables del Environment
+      AWS_REGION: ${{ vars.AWS_REGION }}
+      AWS_ROLE_ARN: ${{ vars.AWS_ROLE_ARN }}
+      BUCKET: ${{ vars.S3_BUCKET_NAME }}
+      PREFIX: ${{ vars.S3_PREFIX }}
+      SECRET_DATA: ${{ secrets.MY_S3_SECRET_DATA }}
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      # (1) Asumir un Role en AWS usando OIDC
+      - name: Configure AWS Credentials with OIDC
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          # Uso de la variable del Environment para el ARN
+          role-to-assume: ${{ env.AWS_ROLE_ARN }} 
+          aws-region: ${{ env.AWS_REGION }}
+          role-session-name: github-actions-s3-upload-session
+
+      # (2) Crear el archivo de salida con Secret y Metadatos
+      - name: Create Artifact File
+        id: create_file
+        run: |
+          # Metadatos de la ejecución
+          TIMESTAMP=$(date +%Y-%m-%d_%H-%M-%S)
+          RUN_ID=${{ github.run_id }}
+          COMMIT_SHA=${{ github.sha }}
+
+          # Generar el contenido del archivo (incluye Secret y metadatos)
+          CONTENT="Deployment Artifact Generated via GitHub Actions\n"
+          CONTENT+="---------------------------------------------------\n"
+          CONTENT+="Date/Time: ${TIMESTAMP}\n"
+          CONTENT+="Run ID: ${RUN_ID}\n"
+          CONTENT+="Commit SHA: ${COMMIT_SHA}\n"
+          CONTENT+="Branch: ${{ github.ref_name }}\n"
+          CONTENT+="Environment Secret Value: ${{ env.SECRET_DATA }}\n" # <-- Imprime: SiVesEstaVariableFuncionaBien
+          
+          FILE_NAME="deployment-artifact-${TIMESTAMP}.txt"
+          echo -e "$CONTENT" > "$FILE_NAME"
+          
+          # Hacemos que el nombre del archivo sea accesible en pasos posteriores
+          echo "ARTIFACT_FILE=$FILE_NAME" >> $GITHUB_OUTPUT
+
+      # (3) Subir el archivo a S3 usando el Rol asumido
+      - name: Upload Artifact to S3
+        run: |
+          # S3 Path: s3://bucket-pipeline2/objetos/deployment-artifact-TIMESTAMP.txt
+          aws s3 cp ${{ steps.create_file.outputs.ARTIFACT_FILE }} \
+          s3://${{ env.BUCKET }}/${{ env.PREFIX }}/${{ steps.create_file.outputs.ARTIFACT_FILE }}
+        env:
+          AWS_PAGER: ""
