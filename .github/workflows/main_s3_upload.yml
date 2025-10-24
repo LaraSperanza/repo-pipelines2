@@ -19,7 +19,7 @@ jobs:
       AWS_REGION: ${{ vars.AWS_REGION }}
       AWS_ROLE_ARN: ${{ vars.AWS_ROLE_ARN }}
       BUCKET: ${{ vars.S3_BUCKET_NAME }}
-      PREFIX: ${{ vars.S3_PREFIX }}
+      FOLDER: ${{ vars.S3_FOLDER }}
       SECRET_DATA: ${{ secrets.MY_S3_SECRET_DATA }}
 
     steps:
@@ -56,6 +56,6 @@ jobs:
       - name: Upload Artifact to S3
         run: |
           aws s3 cp ${{ steps.create_file.outputs.ARTIFACT_FILE }} \
-          s3://${{ env.BUCKET }}/${{ env.PREFIX }}/${{ steps.create_file.outputs.ARTIFACT_FILE }}
+          s3://${{ env.BUCKET }}/${{ env.FOLDER }}/${{ steps.create_file.outputs.ARTIFACT_FILE }}
         env:
           AWS_PAGER: ""
