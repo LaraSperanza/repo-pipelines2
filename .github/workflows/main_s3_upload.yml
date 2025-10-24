@@ -36,12 +36,10 @@ jobs:
       - name: Create Artifact File
         id: create_file
         run: |
-          # Metadatos de la ejecución
           TIMESTAMP=$(date +%Y-%m-%d_%H-%M-%S)
           RUN_ID=${{ github.run_id }}
           COMMIT_SHA=${{ github.sha }}
 
-          # Generar el contenido del archivo (incluye Secret y metadatos)
           CONTENT="Deployment Artifact Generated via GitHub Actions\n"
           CONTENT+="---------------------------------------------------\n"
           CONTENT+="Date/Time: ${TIMESTAMP}\n"
@@ -52,13 +50,11 @@ jobs:
           
           FILE_NAME="deployment-artifact-${TIMESTAMP}.txt"
           echo -e "$CONTENT" > "$FILE_NAME"
-          
-          # Hacemos que el nombre del archivo sea accesible en pasos posteriores
+
           echo "ARTIFACT_FILE=$FILE_NAME" >> $GITHUB_OUTPUT
 
       - name: Upload Artifact to S3
         run: |
-          # S3 Path: s3://bucket-pipeline2/objetos/deployment-artifact-TIMESTAMP.txt
           aws s3 cp ${{ steps.create_file.outputs.ARTIFACT_FILE }} \
           s3://${{ env.BUCKET }}/${{ env.PREFIX }}/${{ steps.create_file.outputs.ARTIFACT_FILE }}
         env:
